@@ -435,9 +435,12 @@ const App = {
   async renderCalendar() {
     if (this.rendered.calendar) return;
     if (!this.calFund) return;
+    // Stamp the fund at call time; discard result if fund changed before fetch completed
+    const requestedFund = this.calFund;
     try {
-      const data = await apiFetch(`/api/calendar?id=${this.calFund}`);
-      this._drawCalendarHeatmap(data);
+      const data = await apiFetch(`/api/calendar?id=${requestedFund}`);
+      if (requestedFund !== this.calFund) return;  // stale response — another fund was selected
+      this._drawCalendarHeatmap(data, requestedFund);
       this._drawAnnualBar(data);
       this.rendered.calendar = true;
     } catch (e) {
@@ -445,8 +448,20 @@ const App = {
     }
   },
 
-  _drawCalendarHeatmap(data) {
+  _drawCalendarHeatmap(data, fundId) {
+    const el = document.getElementById('cal-heatmap');
     const years = Object.keys(data).map(Number).sort();
+    const meta = this.universe.find(f => f.id === (fundId || this.calFund)) || {};
+    const title = meta.name || fundId || this.calFund;
+
+    // No data — show message instead of empty Plotly trace
+    if (years.length === 0) {
+      Plotly.purge(el);
+      el.innerHTML = `<div style="color:var(--muted);padding:40px;text-align:center;">No price data available for ${title}</div>`;
+      return;
+    }
+    el.innerHTML = '';  // clear any prior no-data message
+
     const months = [1,2,3,4,5,6,7,8,9,10,11,12];
     const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Ann'];
 
@@ -461,7 +476,6 @@ const App = {
     });
 
     const text = z.map(row => row.map(v => v != null ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : ''));
-
     const maxAbs = Math.max(...z.flat().filter(v => v != null).map(Math.abs), 5);
 
     const trace = {
@@ -486,16 +500,19 @@ const App = {
       yaxis: { ...PLOT_LAYOUT.yaxis, autorange: 'reversed', title: '' },
       xaxis: { ...PLOT_LAYOUT.xaxis, side: 'top' },
       margin: { t: 60, r: 80, b: 20, l: 50 },
+      title: { text: title, font: { color: '#e6edf3', size: 13 }, x: 0.02 },
     };
 
-    const meta = this.universe.find(f => f.id === this.calFund) || {};
-    layout.title = { text: meta.name || this.calFund, font: { color: '#e6edf3', size: 13 }, x: 0.02 };
-
-    Plotly.react('cal-heatmap', [trace], layout, PLOT_CONFIG);
+    // newPlot forces a full clean redraw — react accumulates stale layout state across fund switches
+    Plotly.purge(el);
+    Plotly.newPlot(el, [trace], layout, PLOT_CONFIG);
   },
 
   _drawAnnualBar(data) {
+    const el = document.getElementById('cal-annual-bar');
+    if (!el) return;
     const years = Object.keys(data).map(Number).sort();
+    if (years.length === 0) { Plotly.purge(el); return; }
     const annReturns = years.map(yr => data[yr]['ann'] != null ? data[yr]['ann'] * 100 : null);
 
     const trace = {
@@ -515,7 +532,8 @@ const App = {
       showlegend: false,
     };
 
-    Plotly.react('cal-annual-bar', [trace], layout, PLOT_CONFIG);
+    Plotly.purge(el);
+    Plotly.newPlot(el, [trace], layout, PLOT_CONFIG);
   },
 
   /* ── Stats ───────────────────────────────────────────────────────────────── */
