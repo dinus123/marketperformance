@@ -15,10 +15,10 @@ Claude reads this at session start instead of scanning the directory. Keep descr
 | File | Status | Purpose | Key symbols |
 |---|---|---|---|
 | `app.py` | PLANNED | Flask routes + API endpoints only; no business logic | `create_app()`, route handlers |
-| `config.py` | PLANNED | All configurable constants: port, tickers, lookbacks, FRED series IDs | `PORT`, `UNIVERSE_FILE`, `CACHE_DIR`, `FRED_SERIES` |
+| `config.py` | EXISTS | All configurable constants: port, paths, FRED series IDs, cache TTL, Yahoo exchange suffix map | `PORT`, `UNIVERSE_FILE`, `CACHE_DIR`, `FRED_SERIES`, `EXCH_YAHOO_SUFFIX` |
 | `perf_engine.py` | PLANNED | All performance calculations (pure Python, no Flask) | `calc_returns()`, `calc_stats()`, `calc_relative()`, `calc_calendar()` |
-| `data_engine.py` | PLANNED | yfinance download, FRED FX rates, file cache, threading, manual CSV load | `get_prices()`, `get_fx_rates()`, `load_manual_nav()`, `_cache_get/set()` |
-| `universe.json` | PLANNED | Instrument universe definition (editable via Universe tab) | schema: id, ticker, isin, currency, data_source, active |
+| `data_engine.py` | EXISTS | yfinance download, Yahoo search (0P... fund IDs), OpenFIGI ISIN lookup, file cache, threading | `get_prices()`, `search_yahoo()`, `lookup_isin()`, `test_access()`, `load_universe()` |
+| `universe.json` | EXISTS | 20-fund CTA universe. 15 active (6 US-ticker, 9 UCITS via 0P... Yahoo IDs). 4 manual CSV. 1 bad ticker (GQSXX, inactive). | schema: id, ticker, isin, currency, data_source, active |
 
 ## Frontend — Templates
 
