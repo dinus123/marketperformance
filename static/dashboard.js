@@ -808,6 +808,7 @@ const App = {
     sortCol: 'ytd',
     sortAsc: false,
     data: [],
+    lastUpdated: null,
 
     load: function() {
       document.getElementById('overview-loading').style.display = 'block';
@@ -815,6 +816,7 @@ const App = {
         .then(r => r.json())
         .then(d => {
           App.overviewTab.data = d.rows || [];
+          App.overviewTab.lastUpdated = d.last_updated || null;
           const lu = d.last_updated || '—';
           document.getElementById('overview-last-updated').textContent = 'Last updated: ' + lu;
           App.overviewTab.render();
@@ -891,9 +893,28 @@ const App = {
       });
       document.getElementById('overview-body').innerHTML = html;
 
-      // Wire sort headers
+      // Set dynamic column labels from last_updated date
+      if (this.lastUpdated) {
+        const dt = new Date(this.lastUpdated + 'T00:00:00Z');
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const mo = dt.getUTCMonth(), yr = dt.getUTCFullYear();
+        const prevMo = mo === 0 ? 11 : mo - 1;
+        const prevYr = mo === 0 ? yr - 1 : yr;
+        const q = Math.floor(mo / 3) + 1;
+        const prevQ = q === 1 ? 4 : q - 1;
+        const prevQYr = q === 1 ? yr - 1 : yr;
+        const setLabel = (id, lbl) => { const e = document.getElementById(id); if (e) e.dataset.dynLabel = lbl; };
+        setLabel('th-mtd',        `${MONTHS[mo]} ${yr}`);
+        setLabel('th-prev-month', `${MONTHS[prevMo]} ${prevYr}`);
+        setLabel('th-qtd',        `Q${q} ${yr}`);
+        setLabel('th-prev-qtr',  `Q${prevQ} ${prevQYr}`);
+      }
+
+      // Wire sort headers + show ▲/▼ indicator on active column
       document.querySelectorAll('#overview-table th.sortable').forEach(th => {
         th.style.cursor = 'pointer';
+        const base = th.dataset.dynLabel || (th.dataset.base = th.dataset.base || th.textContent.replace(/ [▲▼]$/, '').trim());
+        th.textContent = base + (th.dataset.col === this.sortCol ? (this.sortAsc ? ' ▲' : ' ▼') : '');
         th.onclick = () => {
           const c = th.dataset.col;
           if (App.overviewTab.sortCol === c) {
@@ -949,10 +970,12 @@ const App = {
       if (diag) return '#2d333b';
       const t = Math.min(Math.abs(v), 1);
       if (v >= 0) {
-        const r=Math.round(22+t*(248-22)), g=Math.round(27+t*(81-27)), b=Math.round(34+t*(73-34));
+        // positive → green (#3fb950)
+        const r=Math.round(22+t*(63-22)), g=Math.round(27+t*(185-27)), b=Math.round(34+t*(80-34));
         return `rgb(${r},${g},${b})`;
       } else {
-        const r=Math.round(22+t*(88-22)), g=Math.round(27+t*(166-27)), b=Math.round(34+t*(255-34));
+        // negative → red (#f85149)
+        const r=Math.round(22+t*(248-22)), g=Math.round(27+t*(81-27)), b=Math.round(34+t*(73-34));
         return `rgb(${r},${g},${b})`;
       }
     }
