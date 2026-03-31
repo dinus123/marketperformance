@@ -109,10 +109,10 @@ const App = {
   // Cached universe metadata
   universe: [],
 
-  // Overview state
+  // Overview state (legacy fields retained for compatibility)
   overviewWindow: 'YTD',
   overviewData: null,
-  overviewSort: { col: 'YTD', dir: -1 },
+  overviewSort: { col: 'ytd', dir: -1 },
 
   // Timeseries state
   tsRange: '1Y',
@@ -149,18 +149,8 @@ const App = {
       btn.addEventListener('click', () => this.activateTab(btn.dataset.tab));
     });
 
-    // Overview window buttons
-    document.querySelectorAll('.win-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.win-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.overviewWindow = btn.dataset.window;
-        this.renderOverview(true);
-      });
-    });
-
     // Render Overview on load
-    this.renderOverview();
+    App.overviewTab.load();
   },
 
   _populateSelects() {
@@ -257,101 +247,20 @@ const App = {
     document.getElementById(`tab-${tab}`).classList.add('active');
 
     // Lazy render
-    if (tab === 'overview'   && !this.rendered.overview)   this.renderOverview();
+    if (tab === 'overview'   && !App.overviewTab.loaded)   App.overviewTab.load();
     if (tab === 'timeseries' && !this.rendered.timeseries)  this.renderTimeseries();
     if (tab === 'calendar'   && !this.rendered.calendar)    this.renderCalendar();
     if (tab === 'stats'      && !this.rendered.stats)       this.renderStats();
     if (tab === 'relative'   && !this.rendered.relative)    this.renderRelative();
+    if (tab === 'corr' && !App.corrTab.loaded) App.corrTab.load('3Y');
   },
 
-  /* ── Overview ────────────────────────────────────────────────────────────── */
+  /* ── Overview (legacy stubs — delegated to App.overviewTab) ─────────────── */
   async renderOverview(forceRefresh = false) {
-    if (this.rendered.overview && !forceRefresh) return;
-    try {
-      const data = await apiFetch('/api/overview');
-      this.overviewData = data;
-      this._drawOverviewTable(data);
-      this.rendered.overview = true;
-    } catch (e) {
-      console.error('Overview render failed:', e);
-      document.getElementById('overview-tbody').innerHTML =
-        `<tr><td colspan="11" class="loading-row" style="color:var(--negative)">Error loading data: ${e.message}</td></tr>`;
-    }
-  },
-
-  _drawOverviewTable(data) {
-    const col = this.overviewSort.col;
-    const dir = this.overviewSort.dir;
-
-    const sorted = [...data].sort((a, b) => {
-      const av = a[col], bv = b[col];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      if (typeof av === 'string') return dir * av.localeCompare(bv);
-      return dir * (av - bv);
-    });
-
-    const metaMap = {};
-    this.universe.forEach(f => metaMap[f.id] = f);
-
-    const tbody = document.getElementById('overview-tbody');
-    tbody.innerHTML = sorted.map(row => {
-      const hasData = row.has_data;
-      const nameLabel = row.name + (!hasData ? ' <span class="muted">[M]</span>' : '');
-      return `<tr data-fund-id="${row.id}">
-        <td><span class="fund-name-link" onclick="App.openModal('${row.id}')">${nameLabel}</span></td>
-        <td>${row.manager || '—'}</td>
-        <td>${row.type || '—'}</td>
-        <td>${row.currency}</td>
-        <td class="num-col ${colorClass(row['1M'])}">${fmtPct(row['1M'])}</td>
-        <td class="num-col ${colorClass(row['3M'])}">${fmtPct(row['3M'])}</td>
-        <td class="num-col ${colorClass(row['YTD'])}">${fmtPct(row['YTD'])}</td>
-        <td class="num-col ${colorClass(row['1Y'])}">${fmtPct(row['1Y'])}</td>
-        <td class="num-col ${colorClass(row['3Y'])}">${fmtPct(row['3Y'])}</td>
-        <td class="num-col">${fmtPctNoSign(row['vol_1y'])}</td>
-        <td class="num-col">${fmtSharpe(row['sharpe_1y'], row['sharpe_1y_lo'], row['sharpe_1y_hi'])}</td>
-      </tr>`;
-    }).join('');
-
-    // Sortable column headers
-    document.querySelectorAll('#overview-table th.sortable-col').forEach(th => {
-      th.classList.remove('sort-asc', 'sort-desc');
-      if (th.dataset.col === col) {
-        th.classList.add(dir > 0 ? 'sort-asc' : 'sort-desc');
-      }
-      th.onclick = () => {
-        const c = th.dataset.col;
-        this.overviewSort = {
-          col: c,
-          dir: this.overviewSort.col === c ? -this.overviewSort.dir : -1,
-        };
-        this._drawOverviewTable(this.overviewData);
-      };
-    });
-
-    // Summary cards for YTD
-    this._drawSummaryCards(data);
-  },
-
-  _drawSummaryCards(data) {
-    const windows = ['1M', '3M', 'YTD', '1Y'];
-    const cards = document.getElementById('overview-summary-cards');
-    if (!cards) return;
-
-    // Median return per window across funds with data
-    const html = windows.map(w => {
-      const vals = data.map(d => d[w]).filter(v => v != null && !isNaN(v));
-      if (!vals.length) return '';
-      vals.sort((a, b) => a - b);
-      const median = vals[Math.floor(vals.length / 2)];
-      const cls = median >= 0 ? 'positive' : 'negative';
-      return `<div class="summary-card">
-        <div class="card-label">Median ${w}</div>
-        <div class="card-value ${cls}">${fmtPct(median, 1)}</div>
-      </div>`;
-    }).join('');
-    cards.innerHTML = html;
+    // Retained for any legacy call-sites; delegates to overviewTab
+    if (!forceRefresh && App.overviewTab.loaded) return;
+    App.overviewTab.loaded = false;
+    App.overviewTab.load();
   },
 
   /* ── Timeseries ──────────────────────────────────────────────────────────── */
@@ -890,6 +799,162 @@ const App = {
       document.getElementById('af-status').textContent = `Added ${fund.id}. Reload to see.`;
     } catch (e) {
       document.getElementById('af-status').textContent = `Error: ${e.message}`;
+    }
+  },
+
+  /* ── Overview tab module ─────────────────────────────────────────────────── */
+  overviewTab: {
+    loaded: false,
+    sortCol: 'ytd',
+    sortAsc: false,
+    data: [],
+
+    load: function() {
+      document.getElementById('overview-loading').style.display = 'block';
+      fetch('/api/overview')
+        .then(r => r.json())
+        .then(d => {
+          App.overviewTab.data = d.rows || [];
+          const lu = d.last_updated || '—';
+          document.getElementById('overview-last-updated').textContent = 'Last updated: ' + lu;
+          App.overviewTab.render();
+          document.getElementById('overview-loading').style.display = 'none';
+          App.overviewTab.loaded = true;
+          App.rendered.overview = true;
+        })
+        .catch(e => {
+          console.error('Overview load failed:', e);
+          document.getElementById('overview-loading').style.display = 'none';
+          document.getElementById('overview-body').innerHTML =
+            `<tr><td colspan="16" style="color:var(--negative);padding:12px;">Error loading data: ${e.message}</td></tr>`;
+        });
+    },
+
+    refresh: function() {
+      document.getElementById('refresh-btn').disabled = true;
+      document.getElementById('refresh-spinner').style.display = 'inline';
+      fetch('/api/refresh', {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById('overview-last-updated').textContent =
+            'Last updated: ' + (d.last_updated || '—');
+          document.getElementById('refresh-spinner').style.display = 'none';
+          document.getElementById('refresh-btn').disabled = false;
+          App.overviewTab.loaded = false;
+          App.overviewTab.load();
+        })
+        .catch(e => {
+          console.error('Refresh failed:', e);
+          document.getElementById('refresh-spinner').style.display = 'none';
+          document.getElementById('refresh-btn').disabled = false;
+        });
+    },
+
+    render: function() {
+      const rows = [...this.data];
+      const col = this.sortCol, asc = this.sortAsc;
+      rows.sort((a, b) => {
+        const va = a[col], vb = b[col];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (typeof va === 'string') return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+        return asc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+      });
+
+      const fmtPctCell = v => v == null
+        ? '<td class="num-col muted">—</td>'
+        : `<td class="num-col ${v >= 0 ? 'pos' : 'neg'}">${(v * 100).toFixed(2)}%</td>`;
+
+      let html = '';
+      rows.forEach(r => {
+        const nameLabel = r.name + (!r.has_data ? ' <span class="muted">[M]</span>' : '');
+        html += `<tr class="${r.has_data ? '' : 'row-no-data'}" style="cursor:pointer"
+                      onclick="App.openModal('${r.id}')">`;
+        html += `<td class="fund-name-link">${nameLabel}</td>`;
+        html += `<td>${r.manager || '—'}</td>`;
+        html += `<td>${r.type || '—'}</td>`;
+        html += `<td>${r.currency || '—'}</td>`;
+        html += fmtPctCell(r.mtd);
+        html += fmtPctCell(r.prev_month);
+        html += fmtPctCell(r.qtd);
+        html += fmtPctCell(r.prev_qtr);
+        html += fmtPctCell(r.ytd);
+        html += fmtPctCell(r.ret_12m);
+        html += fmtPctCell(r.ret_2025);
+        html += fmtPctCell(r.ret_2024);
+        html += fmtPctCell(r.ret_2023);
+        html += `<td class="num-col">${r.vol != null ? (r.vol * 100).toFixed(1) + '%' : '—'}</td>`;
+        html += `<td class="muted">${r.aum || '—'}</td>`;
+        html += `<td class="muted">${r.inception || '—'}</td>`;
+        html += '</tr>';
+      });
+      document.getElementById('overview-body').innerHTML = html;
+
+      // Wire sort headers
+      document.querySelectorAll('#overview-table th.sortable').forEach(th => {
+        th.style.cursor = 'pointer';
+        th.onclick = () => {
+          const c = th.dataset.col;
+          if (App.overviewTab.sortCol === c) {
+            App.overviewTab.sortAsc = !App.overviewTab.sortAsc;
+          } else {
+            App.overviewTab.sortCol = c;
+            App.overviewTab.sortAsc = false;
+          }
+          App.overviewTab.render();
+        };
+      });
+    },
+  },
+
+  /* ── Correlation heatmap tab ─────────────────────────────────────────────── */
+  corrTab: {
+    loaded: false,
+    load: function(win) {
+      win = win || '3Y';
+      document.getElementById('corr-loading').style.display = 'block';
+      document.getElementById('corr-container').style.display = 'none';
+      fetch('/api/correlation?window=' + win)
+        .then(r => r.json())
+        .then(d => { App.corrTab.render(d); })
+        .catch(e => { console.error(e); });
+    },
+    render: function(d) {
+      const ids = d.ids || [], names = d.names || [], matrix = d.matrix || [];
+      const nObs = d.n_obs || {};
+      const short = names.map(n => n.length > 20 ? n.slice(0,19)+'…' : n);
+      const table = document.getElementById('corr-table');
+      let h = '<thead><tr><th class="corr-label-h">Fund</th>';
+      short.forEach(n => { h += `<th class="corr-col-h"><div class="corr-rot">${n}</div></th>`; });
+      h += '</tr></thead><tbody>';
+      matrix.forEach((row, i) => {
+        h += `<tr><td class="corr-label" title="${names[i]}">${short[i]}<br><span class="corr-obs">${nObs[ids[i]]||''}d</span></td>`;
+        row.forEach((v, j) => {
+          if (v === null) { h += '<td class="corr-cell corr-na">—</td>'; return; }
+          const bg = App.corrTab.color(v, i===j);
+          h += `<td class="corr-cell" style="background:${bg}" title="${names[i]} vs ${names[j]}: ${typeof v==='number'?v.toFixed(3):v}">${i===j?'1.00':typeof v==='number'?v.toFixed(2):'—'}</td>`;
+        });
+        h += '</tr>';
+      });
+      h += '</tbody>';
+      table.innerHTML = h;
+      const info = `${ids.length} funds · ${d.window} window · pairwise on common dates`;
+      document.getElementById('corr-info').textContent = info;
+      document.getElementById('corr-loading').style.display = 'none';
+      document.getElementById('corr-container').style.display = 'block';
+      this.loaded = true;
+    },
+    color: function(v, diag) {
+      if (diag) return '#2d333b';
+      const t = Math.min(Math.abs(v), 1);
+      if (v >= 0) {
+        const r=Math.round(22+t*(248-22)), g=Math.round(27+t*(81-27)), b=Math.round(34+t*(73-34));
+        return `rgb(${r},${g},${b})`;
+      } else {
+        const r=Math.round(22+t*(88-22)), g=Math.round(27+t*(166-27)), b=Math.round(34+t*(255-34));
+        return `rgb(${r},${g},${b})`;
+      }
     }
   },
 

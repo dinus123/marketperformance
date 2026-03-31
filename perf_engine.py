@@ -413,3 +413,143 @@ def calc_returns_table(
         result[fid] = row
 
     return result
+
+
+def calc_correlation(price_cache: dict, window: str = "3Y", min_overlap: int = 60) -> dict:
+    """Pairwise Pearson correlation of daily returns. window: 1Y|3Y|5Y|All"""
+    import numpy as np
+
+    lookback_days = {"1Y": 365, "3Y": 1095, "5Y": 1825, "All": None}
+    days = lookback_days.get(window)
+    cutoff = (pd.Timestamp.today() - pd.Timedelta(days=days)) if days else None
+
+    returns = {}
+    for fid, prices in price_cache.items():
+        if prices is None or prices.empty:
+            continue
+        sub = prices[prices.index >= cutoff] if cutoff is not None else prices
+        r = sub.pct_change().dropna()
+        if len(r) >= min_overlap:
+            returns[fid] = r
+
+    if not returns:
+        return {"ids": [], "names": [], "matrix": [], "window": window, "n_obs": {}}
+
+    ids = sorted(returns.keys())
+    matrix = []
+    for id_i in ids:
+        row = []
+        for id_j in ids:
+            if id_i == id_j:
+                row.append(1.0)
+            else:
+                df = pd.DataFrame({"a": returns[id_i], "b": returns[id_j]}).dropna()
+                if len(df) < min_overlap:
+                    row.append(None)
+                else:
+                    c = df["a"].corr(df["b"])
+                    row.append(round(float(c), 4) if not np.isnan(c) else None)
+        matrix.append(row)
+
+    return {
+        "ids": ids,
+        "names": ids,
+        "matrix": matrix,
+        "window": window,
+        "n_obs": {fid: int(len(returns[fid])) for fid in ids},
+    }
+
+
+# ── New period functions for overview rebuild ─────────────────────────────────
+
+def mtd(prices: pd.Series) -> float | None:
+    """Return from start of current calendar month to last observation."""
+    if prices is None or prices.empty:
+        return None
+    today = prices.index[-1]
+    month_start = pd.Timestamp(today.year, today.month, 1)
+    sub = prices[prices.index >= month_start]
+    if len(sub) < 2:
+        return None
+    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+
+
+def prev_month_return(prices: pd.Series) -> float | None:
+    """Return for the previous complete calendar month."""
+    if prices is None or prices.empty:
+        return None
+    last = prices.index[-1]
+    cur_month_start = pd.Timestamp(last.year, last.month, 1)
+    prev_end = cur_month_start - pd.Timedelta(days=1)
+    prev_start = pd.Timestamp(prev_end.year, prev_end.month, 1)
+    sub = prices[(prices.index >= prev_start) & (prices.index <= prev_end)]
+    if len(sub) < 2:
+        return None
+    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+
+
+def qtd(prices: pd.Series) -> float | None:
+    """Return from start of current calendar quarter to last observation."""
+    if prices is None or prices.empty:
+        return None
+    last = prices.index[-1]
+    q_month = ((last.month - 1) // 3) * 3 + 1  # first month of current quarter
+    q_start = pd.Timestamp(last.year, q_month, 1)
+    sub = prices[prices.index >= q_start]
+    if len(sub) < 2:
+        return None
+    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+
+
+def prev_quarter_return(prices: pd.Series) -> float | None:
+    """Return for the previous complete calendar quarter."""
+    if prices is None or prices.empty:
+        return None
+    last = prices.index[-1]
+    cur_q_month = ((last.month - 1) // 3) * 3 + 1
+    cur_q_start = pd.Timestamp(last.year, cur_q_month, 1)
+    prev_q_end = cur_q_start - pd.Timedelta(days=1)
+    prev_q_month = ((prev_q_end.month - 1) // 3) * 3 + 1
+    prev_q_start = pd.Timestamp(prev_q_end.year, prev_q_month, 1)
+    sub = prices[(prices.index >= prev_q_start) & (prices.index <= prev_q_end)]
+    if len(sub) < 2:
+        return None
+    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+
+
+def calendar_year_return(prices: pd.Series, year: int) -> float | None:
+    """Full calendar year return. Returns None if fund didn't cover the full year."""
+    if prices is None or prices.empty:
+        return None
+    sub = prices[prices.index.year == year]
+    if sub.empty:
+        return None
+    # Fund must have first price <= Jan 31 and last price >= Dec 1 (for past years)
+    if sub.index[0] > pd.Timestamp(year, 1, 31):
+        return None  # fund launched mid-year
+    if sub.index[-1] < pd.Timestamp(year, 12, 1) and year < pd.Timestamp.today().year:
+        return None  # fund ended mid-year
+    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+
+
+def inception_date(prices: pd.Series) -> str | None:
+    """Return first date in price series as YYYY-MM string."""
+    if prices is None or prices.empty:
+        return None
+    return prices.index[0].strftime("%Y-%m")
+
+
+def aum_from_ticker(ticker: str) -> str | None:
+    """Try to fetch AUM from yfinance fast_info.total_assets. Returns formatted string or None."""
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).fast_info
+        ta = getattr(info, 'total_assets', None)
+        if ta and ta > 0:
+            if ta >= 1e9:
+                return f"${ta/1e9:.1f}bn"
+            elif ta >= 1e6:
+                return f"${ta/1e6:.0f}m"
+    except Exception:
+        pass
+    return None

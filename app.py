@@ -354,33 +354,101 @@ def get_fund_detail():
 
 # ── API: overview table data ───────────────────────────────────────────────────
 
+def _get_last_updated() -> str:
+    """Date of most recent price point across all loaded funds."""
+    dates = [s.index[-1] for s in _price_cache.values() if s is not None and not s.empty]
+    if not dates:
+        return "N/A"
+    return max(dates).strftime("%Y-%m-%d")
+
+
 @app.route("/api/overview")
 def get_overview():
     """
     GET /api/overview
-    Full overview table: all active funds × all return windows + vol + sharpe.
-    Returns [{id, name, manager, type, currency, 1M, 3M, YTD, 1Y, 3Y, vol_1y, sharpe_1y, sharpe_1y_lo, sharpe_1y_hi}]
+    Full overview table: MTD, Prev Month, QTD, Prev Qtr, YTD, 12M, 2025, 2024, 2023,
+    Vol (trailing 252d), AUM, Inception.
+    Returns {rows: [...], last_updated: str}
     """
     fund_meta = _fund_map()
-    table = pe.calc_returns_table(_price_cache)
+    universe = de.load_universe()
 
     rows = []
-    for fid, row in table.items():
+
+    for fid, prices in _price_cache.items():
         meta = fund_meta.get(fid, {})
         if not meta.get("active", True):
             continue
-        entry = {
-            "id":          fid,
-            "name":        meta.get("name", fid),
-            "manager":     meta.get("manager", ""),
-            "type":        meta.get("instrument_type", ""),
-            "currency":    meta.get("currency", "USD"),
-            "has_data":    not _price_cache.get(fid, pd.Series()).empty,
-        }
-        entry.update({k: _safe_float(v) for k, v in row.items()})
-        rows.append(entry)
+        has_data = prices is not None and not prices.empty
 
-    return jsonify(rows)
+        row = {
+            "id":        fid,
+            "name":      meta.get("name", fid),
+            "manager":   meta.get("manager", ""),
+            "type":      meta.get("instrument_type", ""),
+            "currency":  meta.get("currency", "USD"),
+            "has_data":  has_data,
+            "last_date": prices.index[-1].strftime("%Y-%m-%d") if has_data else None,
+        }
+
+        if has_data:
+            row["mtd"]        = _safe_float(pe.mtd(prices))
+            row["prev_month"] = _safe_float(pe.prev_month_return(prices))
+            row["qtd"]        = _safe_float(pe.qtd(prices))
+            row["prev_qtr"]   = _safe_float(pe.prev_quarter_return(prices))
+            row["ytd"]        = _safe_float(pe.period_return(prices, "YTD"))
+            row["ret_12m"]    = _safe_float(pe.period_return(prices, "1Y"))
+            row["ret_2025"]   = _safe_float(pe.calendar_year_return(prices, 2025))
+            row["ret_2024"]   = _safe_float(pe.calendar_year_return(prices, 2024))
+            row["ret_2023"]   = _safe_float(pe.calendar_year_return(prices, 2023))
+            row["vol"]        = _safe_float(pe.vol(pe.returns_from_prices(prices).iloc[-252:]))
+            row["inception"]  = pe.inception_date(prices)
+        else:
+            for k in ["mtd", "prev_month", "qtd", "prev_qtr", "ytd", "ret_12m",
+                      "ret_2025", "ret_2024", "ret_2023", "vol", "inception"]:
+                row[k] = None
+
+        row["aum"] = None  # fetched lazily via /api/refresh, not at render time
+        rows.append(row)
+
+    last_updated = _get_last_updated()
+    return jsonify({"rows": rows, "last_updated": last_updated})
+
+
+@app.route("/api/refresh", methods=["POST"])
+def refresh_data():
+    """Re-download all yfinance prices (bypass cache) and reload _price_cache."""
+    universe = de.load_universe()
+    reloaded = 0
+    for fund in universe:
+        if not fund.get("active", True):
+            continue
+        fid = fund["id"]
+        src = fund.get("data_source", "yfinance")
+        ticker = fund.get("ticker")
+        if src == "yfinance" and ticker:
+            df = de.get_prices(ticker, start=config.DEFAULT_START, use_cache=False)
+            if df is not None and not df.empty:
+                s = df.iloc[:, 0]
+                s.name = fid
+                _price_cache[fid] = s
+                reloaded += 1
+            else:
+                _price_cache[fid] = pd.Series(dtype=float)
+    last_updated = _get_last_updated()
+    return jsonify({"status": "ok", "reloaded": reloaded, "last_updated": last_updated})
+
+
+# ── API: correlation matrix ───────────────────────────────────────────────────
+
+@app.route("/api/correlation")
+def get_correlation():
+    """GET /api/correlation?window=1Y|3Y|5Y|All"""
+    window = request.args.get("window", "3Y")
+    result = pe.calc_correlation(_price_cache, window=window)
+    fm = _fund_map()
+    result["names"] = [fm.get(fid, {}).get("name", fid) for fid in result["ids"]]
+    return jsonify(result)
 
 
 # ── API: upload manual NAV ────────────────────────────────────────────────────

@@ -1,0 +1,14 @@
+<div class="tab-controls">
+  <span class="label">Window:</span>
+  <select id="corr-window" onchange="App.corrTab.load(this.value)">
+    <option value="1Y">1 Year</option>
+    <option value="3Y" selected>3 Years</option>
+    <option value="5Y">5 Years</option>
+    <option value="All">All Available</option>
+  </select>
+  <span id="corr-info" class="muted" style="margin-left:16px;font-size:11px;"></span>
+</div>
+<div id="corr-loading" class="loading-msg" style="display:none">Computing correlations…</div>
+<div id="corr-container" style="overflow-x:auto;margin-top:12px;">
+  <table id="corr-table" class="data-table corr-table"></table>
+</div>
