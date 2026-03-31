@@ -105,6 +105,7 @@ const App = {
     relative:    false,
     universe:    false,
   },
+  calendarRenderedFund: null,   // ID of last successfully rendered calendar fund
 
   // Cached universe metadata
   universe: [],
@@ -165,8 +166,7 @@ const App = {
       ).join('');
       calSel.addEventListener('change', () => {
         this.calFund = calSel.value;
-        this.rendered.calendar = false;
-        this.renderCalendar();
+        this.renderCalendar();  // ID tracker in renderCalendar handles re-render vs skip
       });
       this.calFund = withData.length ? withData[0].id : null;
     }
@@ -249,7 +249,7 @@ const App = {
     // Lazy render
     if (tab === 'overview'   && !App.overviewTab.loaded)   App.overviewTab.load();
     if (tab === 'timeseries' && !this.rendered.timeseries)  this.renderTimeseries();
-    if (tab === 'calendar'   && !this.rendered.calendar)    this.renderCalendar();
+    if (tab === 'calendar')   this.renderCalendar();
     if (tab === 'stats'      && !this.rendered.stats)       this.renderStats();
     if (tab === 'relative'   && !this.rendered.relative)    this.renderRelative();
     if (tab === 'corr' && !App.corrTab.loaded) App.corrTab.load('3Y');
@@ -432,17 +432,17 @@ const App = {
   },
 
   /* ── Calendar ────────────────────────────────────────────────────────────── */
-  async renderCalendar() {
-    if (this.rendered.calendar) return;
+  async renderCalendar(force = false) {
+    if (!force && this.calendarRenderedFund === this.calFund) return; // already showing this fund
     if (!this.calFund) return;
-    // Stamp the fund at call time; discard result if fund changed before fetch completed
     const requestedFund = this.calFund;
     try {
       const data = await apiFetch(`/api/calendar?id=${requestedFund}`);
-      if (requestedFund !== this.calFund) return;  // stale response — another fund was selected
+      if (requestedFund !== this.calFund) return;  // fund changed while awaiting — discard
       this._drawCalendarHeatmap(data, requestedFund);
       this._drawAnnualBar(data);
-      this.rendered.calendar = true;
+      this.calendarRenderedFund = requestedFund;
+      this.rendered.calendar = true;  // keep boolean in sync for activateTab
     } catch (e) {
       console.error('Calendar render failed:', e);
     }
