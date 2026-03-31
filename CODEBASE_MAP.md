@@ -1,0 +1,83 @@
+# Codebase Map
+
+Living index of all project files. **Update this file whenever a file is created, deleted, or significantly refactored.**
+Claude reads this at session start instead of scanning the directory. Keep descriptions tight — one line per file.
+
+---
+
+## Status
+`[PLANNED]` = not yet created | `[EXISTS]` = created | `[STUB]` = skeleton only
+
+---
+
+## Backend — Python
+
+| File | Status | Purpose | Key symbols |
+|---|---|---|---|
+| `app.py` | PLANNED | Flask routes + API endpoints only; no business logic | `create_app()`, route handlers |
+| `config.py` | PLANNED | All configurable constants: port, tickers, lookbacks, FRED series IDs | `PORT`, `UNIVERSE_FILE`, `CACHE_DIR`, `FRED_SERIES` |
+| `perf_engine.py` | PLANNED | All performance calculations (pure Python, no Flask) | `calc_returns()`, `calc_stats()`, `calc_relative()`, `calc_calendar()` |
+| `data_engine.py` | PLANNED | yfinance download, FRED FX rates, file cache, threading, manual CSV load | `get_prices()`, `get_fx_rates()`, `load_manual_nav()`, `_cache_get/set()` |
+| `universe.json` | PLANNED | Instrument universe definition (editable via Universe tab) | schema: id, ticker, isin, currency, data_source, active |
+
+## Frontend — Templates
+
+| File | Status | Purpose |
+|---|---|---|
+| `templates/base.html` | PLANNED | Shell: nav tabs, header, footer, JS/CSS includes |
+| `templates/tab_overview.html` | PLANNED | Return cards (1M/3M/YTD/1Y/3Y) + sortable performance table |
+| `templates/tab_timeseries.html` | PLANNED | Cumulative return + drawdown Plotly charts; date range slider; multi-series |
+| `templates/tab_calendar.html` | PLANNED | Monthly heatmap (rows=years, cols=months) + annual bar chart |
+| `templates/tab_stats.html` | PLANNED | Vol, Sharpe+CI, Sortino, max DD, Calmar; rolling window selector |
+| `templates/tab_relative.html` | PLANNED | Alpha, beta, TE, IR, up/down capture vs selected benchmark |
+| `templates/tab_universe.html` | PLANNED | Editable instrument table; add/remove; manual NAV CSV upload |
+
+## Frontend — Static
+
+| File | Status | Purpose | Key symbols |
+|---|---|---|---|
+| `static/dashboard.css` | PLANNED | Dark GitHub theme; tab panel show/hide; table styles | CSS vars for colors |
+| `static/dashboard.js` | PLANNED | All client JS; App state object; tab routing; Plotly renders | `App`, `App.rendered`, `renderOverview()`, `renderTimeseries()`, etc. |
+
+## Data
+
+| Path | Status | Purpose |
+|---|---|---|
+| `data/cache/` | PLANNED | File-based pickle cache; TTL-managed; never delete on restart |
+| `data/manual/` | PLANNED | Drop zone for manually uploaded UCITS NAV CSVs |
+
+## Config & Infra
+
+| File | Status | Purpose |
+|---|---|---|
+| `.gitignore` | EXISTS | Excludes cache, venv, __pycache__, .env, manual NAV CSVs |
+| `CLAUDE.md` | EXISTS | Claude Code project rules + session protocol |
+| `MASTER_PROMPT.md` | EXISTS | Full project spec (architecture, universe, formulas, conventions) |
+| `DECISIONS.md` | EXISTS | Architecture decision log |
+| `CODEBASE_MAP.md` | EXISTS | This file |
+| `requirements.txt` | PLANNED | Pinned dependencies |
+
+---
+
+## API Endpoints (planned)
+
+| Method | Path | Handler | Returns |
+|---|---|---|---|
+| GET | `/` | `index` | Renders `base.html` |
+| GET | `/api/universe` | `get_universe` | JSON array of instruments |
+| POST | `/api/universe` | `update_universe` | Updated universe |
+| GET | `/api/returns` | `get_returns` | `{id: {window: pct}}` for all active instruments |
+| GET | `/api/timeseries?ids=...&start=...&end=...` | `get_timeseries` | `{id: {dates, cum_ret, drawdown}}` |
+| GET | `/api/stats?ids=...&start=...&end=...` | `get_stats` | `{id: {cagr, vol, sharpe, sharpe_ci_lo, sharpe_ci_hi, ...}}` |
+| GET | `/api/calendar?id=...` | `get_calendar` | `{year: {month: pct, ann: pct}}` |
+| GET | `/api/relative?id=...&bench=...` | `get_relative` | `{alpha, beta, te, ir, up_cap, dn_cap}` |
+| POST | `/api/upload-nav` | `upload_nav` | `{status, rows_loaded}` |
+
+---
+
+## Known Issues / Tech Debt
+_Add entries here as they arise — prevents re-diagnosing the same issue._
+
+| Date | File | Issue | Status |
+|---|---|---|---|
+| — | — | — | — |
