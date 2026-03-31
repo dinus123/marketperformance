@@ -14,9 +14,9 @@ Claude reads this at session start instead of scanning the directory. Keep descr
 
 | File | Status | Purpose | Key symbols |
 |---|---|---|---|
-| `app.py` | PLANNED | Flask routes + API endpoints only; no business logic | `create_app()`, route handlers |
+| `app.py` | EXISTS | Flask routes + API endpoints; _price_cache populated at startup | `/api/overview`, `/api/timeseries`, `/api/stats`, `/api/calendar`, `/api/relative`, `/api/correlation`, `/api/refresh`, `/api/upload-nav` |
 | `config.py` | EXISTS | All configurable constants: port, paths, FRED series IDs, cache TTL, Yahoo exchange suffix map | `PORT`, `UNIVERSE_FILE`, `CACHE_DIR`, `FRED_SERIES`, `EXCH_YAHOO_SUFFIX` |
-| `perf_engine.py` | PLANNED | All performance calculations (pure Python, no Flask) | `calc_returns()`, `calc_stats()`, `calc_relative()`, `calc_calendar()` |
+| `perf_engine.py` | EXISTS | All performance calculations (pure Python, no Flask) | `calc_returns_table`, `calc_stats`, `calc_calendar`, `calc_relative`, `calc_correlation`, `mtd`, `qtd`, `prev_month_return`, `prev_quarter_return`, `calendar_year_return`, `inception_date`, `aum_from_ticker` |
 | `data_engine.py` | EXISTS | yfinance download, Yahoo search (0P... fund IDs), OpenFIGI ISIN lookup, file cache, threading | `get_prices()`, `search_yahoo()`, `lookup_isin()`, `test_access()`, `load_universe()` |
 | `universe.json` | EXISTS | 20-fund CTA universe. 15 active (6 US-ticker, 9 UCITS via 0P... Yahoo IDs). 4 manual CSV. 1 bad ticker (GQSXX, inactive). | schema: id, ticker, isin, currency, data_source, active |
 
@@ -24,20 +24,21 @@ Claude reads this at session start instead of scanning the directory. Keep descr
 
 | File | Status | Purpose |
 |---|---|---|
-| `templates/base.html` | PLANNED | Shell: nav tabs, header, footer, JS/CSS includes |
-| `templates/tab_overview.html` | PLANNED | Return cards (1M/3M/YTD/1Y/3Y) + sortable performance table |
-| `templates/tab_timeseries.html` | PLANNED | Cumulative return + drawdown Plotly charts; date range slider; multi-series |
-| `templates/tab_calendar.html` | PLANNED | Monthly heatmap (rows=years, cols=months) + annual bar chart |
-| `templates/tab_stats.html` | PLANNED | Vol, Sharpe+CI, Sortino, max DD, Calmar; rolling window selector |
-| `templates/tab_relative.html` | PLANNED | Alpha, beta, TE, IR, up/down capture vs selected benchmark |
-| `templates/tab_universe.html` | PLANNED | Editable instrument table; add/remove; manual NAV CSV upload |
+| `templates/base.html` | EXISTS | Shell: nav tabs (Overview/Timeseries/Calendar/Stats/Relative/Correlation/Universe) |
+| `templates/tab_overview.html` | EXISTS | Sortable table: Fund/Manager/Type/CCY/MTD/Prev Mo/QTD/Prev Qtr/YTD/12M/2025/2024/2023/Vol/AUM/Inception + Last Updated + Refresh button |
+| `templates/tab_timeseries.html` | EXISTS | Cumulative return + drawdown Plotly charts; date range slider; multi-series; rebased to 100 at window start |
+| `templates/tab_calendar.html` | EXISTS | Monthly heatmap (rows=years, cols=months) + annual bar chart |
+| `templates/tab_stats.html` | EXISTS | Vol, Sharpe+CI, Sortino, max DD, Calmar; rolling window selector |
+| `templates/tab_relative.html` | EXISTS | Alpha, beta, TE, IR, up/down capture vs selected benchmark |
+| `templates/tab_universe.html` | EXISTS | Editable instrument table; add/remove; manual NAV CSV upload |
+| `templates/tab_corr.html` | EXISTS | Pairwise correlation heatmap; window dropdown (1Y/3Y/5Y/All); red=positive, blue=negative |
 
 ## Frontend — Static
 
 | File | Status | Purpose | Key symbols |
 |---|---|---|---|
-| `static/dashboard.css` | PLANNED | Dark GitHub theme; tab panel show/hide; table styles | CSS vars for colors |
-| `static/dashboard.js` | PLANNED | All client JS; App state object; tab routing; Plotly renders | `App`, `App.rendered`, `renderOverview()`, `renderTimeseries()`, etc. |
+| `static/dashboard.css` | EXISTS | Dark GitHub theme; tab panel show/hide; table styles; .corr-* rules; .pos/.neg/.num-col | CSS vars for colors |
+| `static/dashboard.js` | EXISTS | All client JS; App state object; tab routing; Plotly renders | `App`, `overviewTab`, `corrTab`, `timeseriesTab`, `calendarTab`, `statsTab`, `relativeTab` |
 
 ## Data
 
