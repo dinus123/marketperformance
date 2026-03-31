@@ -454,13 +454,15 @@ const App = {
     const meta = this.universe.find(f => f.id === (fundId || this.calFund)) || {};
     const title = meta.name || fundId || this.calFund;
 
-    // No data — show message instead of empty Plotly trace
+    // Purge first — always do this before any innerHTML manipulation to avoid
+    // corrupting Plotly's internal div state (causes stale axis type on next render)
+    Plotly.purge('cal-heatmap');
+
+    // No data — show message in cleared div
     if (years.length === 0) {
-      Plotly.purge(el);
       el.innerHTML = `<div style="color:var(--muted);padding:40px;text-align:center;">No price data available for ${title}</div>`;
       return;
     }
-    el.innerHTML = '';  // clear any prior no-data message
 
     const months = [1,2,3,4,5,6,7,8,9,10,11,12];
     const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Ann'];
@@ -497,15 +499,15 @@ const App = {
 
     const layout = {
       ...PLOT_LAYOUT,
-      yaxis: { ...PLOT_LAYOUT.yaxis, autorange: 'reversed', title: '' },
-      xaxis: { ...PLOT_LAYOUT.xaxis, side: 'top' },
+      // type:'category' must be explicit — after purge Plotly won't auto-detect
+      // string labels correctly and falls back to linear, compressing all data left
+      xaxis: { ...PLOT_LAYOUT.xaxis, type: 'category', side: 'top' },
+      yaxis: { ...PLOT_LAYOUT.yaxis, type: 'category', autorange: 'reversed', title: '' },
       margin: { t: 60, r: 80, b: 20, l: 50 },
       title: { text: title, font: { color: '#e6edf3', size: 13 }, x: 0.02 },
     };
 
-    // newPlot forces a full clean redraw — react accumulates stale layout state across fund switches
-    Plotly.purge(el);
-    Plotly.newPlot(el, [trace], layout, PLOT_CONFIG);
+    Plotly.newPlot('cal-heatmap', [trace], layout, PLOT_CONFIG);
   },
 
   _drawAnnualBar(data) {
