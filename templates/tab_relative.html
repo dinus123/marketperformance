@@ -1,0 +1,17 @@
+<!-- Relative Tab -->
+<div class="tab-content">
+  <div class="rel-controls">
+    <label class="muted">Fund:</label>
+    <select id="rel-fund-select" class="ctrl-select"></select>
+    <label class="muted" style="margin-left:12px;">vs Benchmark:</label>
+    <select id="rel-bench-select" class="ctrl-select"></select>
+    <span class="muted" style="margin-left:12px;">Window:</span>
+    {% for w in ['1Y','3Y','5Y','All'] %}
+    <button class="rel-win-btn {% if w == 'All' %}active{% endif %}" data-window="{{ w }}">{{ w }}</button>
+    {% endfor %}
+  </div>
+
+  <div id="rel-stats-cards" class="rel-cards"></div>
+
+  <div id="rel-rolling-beta" class="plotly-chart" style="margin-top:16px;"></div>
+</div>

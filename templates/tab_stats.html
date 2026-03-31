@@ -1,0 +1,34 @@
+<!-- Risk / Stats Tab -->
+<div class="tab-content">
+  <div class="stats-controls">
+    <div>
+      <span class="muted">Window:</span>
+      {% for w in ['1Y','3Y','5Y','All'] %}
+      <button class="stats-win-btn {% if w == '3Y' %}active{% endif %}" data-window="{{ w }}">{{ w }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="stats-table" class="perf-table">
+      <thead>
+        <tr>
+          <th>Fund</th>
+          <th>CCY</th>
+          <th class="num-col">CAGR</th>
+          <th class="num-col">Vol</th>
+          <th class="num-col">Sharpe [95% CI]</th>
+          <th class="num-col">Sortino</th>
+          <th class="num-col">Max DD</th>
+          <th class="num-col">Calmar</th>
+          <th class="num-col">Skew</th>
+          <th class="num-col">Kurt</th>
+          <th class="num-col">N obs</th>
+        </tr>
+      </thead>
+      <tbody id="stats-tbody">
+        <tr><td colspan="11" class="loading-row">Select window to load…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>

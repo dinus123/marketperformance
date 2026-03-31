@@ -1,0 +1,29 @@
+<!-- Timeseries Tab -->
+<div class="tab-content">
+  <div class="ts-controls">
+    <div class="ts-left">
+      <span class="muted">Range:</span>
+      {% for w in ['1M','3M','6M','YTD','1Y','3Y','5Y','Max'] %}
+      <button class="range-btn {% if w == '1Y' %}active{% endif %}" data-range="{{ w }}">{{ w }}</button>
+      {% endfor %}
+      <span class="muted" style="margin-left:12px;">Scale:</span>
+      <button class="scale-btn active" data-scale="linear">Linear</button>
+      <button class="scale-btn" data-scale="log">Log</button>
+    </div>
+  </div>
+
+  <div class="ts-layout">
+    <div class="ts-main">
+      <div id="ts-chart" class="plotly-chart"></div>
+      <div id="dd-chart" class="plotly-chart plotly-chart-sm"></div>
+    </div>
+    <div class="ts-sidebar">
+      <div class="sidebar-header">Funds</div>
+      <div class="sidebar-actions">
+        <a href="#" onclick="App.tsSelectAll(); return false;">All</a>
+        <a href="#" onclick="App.tsSelectNone(); return false;">None</a>
+      </div>
+      <div id="ts-fund-list" class="fund-checklist"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,101 @@
+<!-- Universe Tab -->
+<div class="tab-content">
+  <div class="univ-toolbar">
+    <span class="muted">40-fund CTA universe</span>
+    <button class="btn-secondary" onclick="App.showAddFundForm()">+ Add Fund</button>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="perf-table" id="universe-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Manager</th>
+          <th>Type</th>
+          <th>CCY</th>
+          <th>ISIN</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Notes</th>
+          <th>Upload NAV</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fund in universe %}
+        <tr class="{% if not fund.active %}row-inactive{% endif %}">
+          <td><code>{{ fund.id }}</code></td>
+          <td>{{ fund.name }}</td>
+          <td>{{ fund.manager }}</td>
+          <td>{{ fund.instrument_type }}</td>
+          <td>{{ fund.currency }}</td>
+          <td class="muted">{{ fund.isin or '—' }}</td>
+          <td>
+            {% if fund.data_source == 'yfinance' %}
+              <span class="badge badge-blue">yfinance</span>
+            {% elif fund.data_source == 'manual_csv' %}
+              <span class="badge badge-yellow">[M] manual</span>
+            {% else %}
+              <span class="badge">{{ fund.data_source }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if fund.active %}
+              <span class="badge badge-green">active</span>
+            {% else %}
+              <span class="badge badge-red">inactive</span>
+            {% endif %}
+          </td>
+          <td class="muted notes-cell">{{ fund.notes }}</td>
+          <td>
+            {% if fund.data_source == 'manual_csv' and fund.active %}
+            <form class="nav-upload-form" data-fund-id="{{ fund.id }}">
+              <input type="file" name="file" accept=".csv" class="nav-file-input"/>
+              <button type="submit" class="btn-mini">Upload</button>
+              <span class="upload-status"></span>
+            </form>
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Add fund form (hidden by default) -->
+  <div id="add-fund-form" class="add-fund-panel" style="display:none;">
+    <h3>Add Fund</h3>
+    <div class="form-grid">
+      <label>ID <input id="af-id" class="form-input" placeholder="FUND_ID"/></label>
+      <label>Name <input id="af-name" class="form-input" placeholder="Full fund name"/></label>
+      <label>Manager <input id="af-manager" class="form-input"/></label>
+      <label>Ticker <input id="af-ticker" class="form-input" placeholder="Yahoo ticker or 0P..."/></label>
+      <label>ISIN <input id="af-isin" class="form-input"/></label>
+      <label>Type
+        <select id="af-type" class="ctrl-select">
+          <option>UCITS</option><option>40 Act</option><option>ETF</option>
+          <option>Offshore Fund</option><option>Index</option>
+        </select>
+      </label>
+      <label>Currency
+        <select id="af-currency" class="ctrl-select">
+          <option>USD</option><option>EUR</option><option>GBP</option>
+        </select>
+      </label>
+      <label>Data Source
+        <select id="af-source" class="ctrl-select">
+          <option value="yfinance">yfinance</option>
+          <option value="manual_csv">manual_csv</option>
+        </select>
+      </label>
+      <label>Notes <input id="af-notes" class="form-input"/></label>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" onclick="App.submitAddFund()">Add</button>
+      <button class="btn-secondary" onclick="App.hideAddFundForm()">Cancel</button>
+    </div>
+    <div id="af-status" class="muted"></div>
+  </div>
+</div>

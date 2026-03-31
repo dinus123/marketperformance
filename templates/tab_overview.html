@@ -1,0 +1,35 @@
+<!-- Overview Tab -->
+<div class="tab-content">
+  <div class="overview-top">
+    <div class="window-selector">
+      <span class="muted">Window:</span>
+      {% for w in ['1M','3M','6M','YTD','1Y','3Y','5Y'] %}
+      <button class="win-btn {% if w == 'YTD' %}active{% endif %}" data-window="{{ w }}">{{ w }}</button>
+      {% endfor %}
+    </div>
+    <div id="overview-summary-cards" class="summary-cards"></div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="overview-table" class="perf-table sortable">
+      <thead>
+        <tr>
+          <th data-col="name" class="sortable-col">Fund</th>
+          <th data-col="manager" class="sortable-col">Manager</th>
+          <th data-col="type" class="sortable-col">Type</th>
+          <th data-col="currency" class="sortable-col">CCY</th>
+          <th data-col="1M" class="sortable-col num-col">1M</th>
+          <th data-col="3M" class="sortable-col num-col">3M</th>
+          <th data-col="YTD" class="sortable-col num-col">YTD</th>
+          <th data-col="1Y" class="sortable-col num-col">1Y</th>
+          <th data-col="3Y" class="sortable-col num-col">3Y</th>
+          <th data-col="vol_1y" class="sortable-col num-col">Vol 1Y</th>
+          <th data-col="sharpe_1y" class="sortable-col num-col">Sharpe 1Y</th>
+        </tr>
+      </thead>
+      <tbody id="overview-tbody">
+        <tr><td colspan="11" class="loading-row">Loading data…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
