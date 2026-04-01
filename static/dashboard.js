@@ -400,7 +400,7 @@ const App = {
         title: 'Rebased (100)',
         type: this.tsScale === 'log' ? 'log' : 'linear',
       },
-      xaxis: { ...PLOT_LAYOUT.xaxis },
+      xaxis: { ...PLOT_LAYOUT.xaxis, type: 'date' },
       showlegend: true,
       legend: { ...PLOT_LAYOUT.legend, orientation: 'v', x: 1.01 },
     };
@@ -408,7 +408,7 @@ const App = {
     const ddLayout = {
       ...PLOT_LAYOUT,
       yaxis: { ...PLOT_LAYOUT.yaxis, title: 'Drawdown', tickformat: '.0%' },
-      xaxis: { ...PLOT_LAYOUT.xaxis },
+      xaxis: { ...PLOT_LAYOUT.xaxis, type: 'date' },
       showlegend: false,
       margin: { ...PLOT_LAYOUT.margin, t: 15 },
     };
