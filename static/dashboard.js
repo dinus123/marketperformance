@@ -731,6 +731,7 @@ const App = {
         hovertemplate: '%{x}<br>%{y:.2f}<extra></extra>',
       }], {
         ...PLOT_LAYOUT,
+        xaxis: { ...PLOT_LAYOUT.xaxis, type: 'date' },
         yaxis: { ...PLOT_LAYOUT.yaxis, title: 'Rebased (100)' },
         margin: { t: 10, r: 20, b: 40, l: 60 },
         showlegend: false,
@@ -744,6 +745,7 @@ const App = {
         hovertemplate: '%{x}<br>%{y:.2%}<extra></extra>',
       }], {
         ...PLOT_LAYOUT,
+        xaxis: { ...PLOT_LAYOUT.xaxis, type: 'date' },
         yaxis: { ...PLOT_LAYOUT.yaxis, title: 'Drawdown', tickformat: '.0%' },
         margin: { t: 10, r: 20, b: 40, l: 60 },
         showlegend: false,
@@ -773,8 +775,8 @@ const App = {
         hovertemplate: '%{y} %{x}: %{text}<extra></extra>',
       }], {
         ...PLOT_LAYOUT,
-        yaxis: { ...PLOT_LAYOUT.yaxis, autorange: 'reversed' },
-        xaxis: { ...PLOT_LAYOUT.xaxis, side: 'top' },
+        xaxis: { ...PLOT_LAYOUT.xaxis, type: 'category', side: 'top' },
+        yaxis: { ...PLOT_LAYOUT.yaxis, type: 'category', autorange: 'reversed' },
         margin: { t: 40, r: 20, b: 10, l: 50 },
       }, PLOT_CONFIG);
     }
