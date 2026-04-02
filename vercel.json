@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/prices.py": {
-      "runtime": "python3.12",
+      "runtime": "python3.12.0",
       "maxDuration": 30
     }
   },
