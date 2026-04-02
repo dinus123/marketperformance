@@ -63,9 +63,16 @@ def _window_start(prices: pd.Series, window: str) -> pd.Timestamp | None:
     return None
 
 
+def _prior_close(prices: pd.Series, period_start: pd.Timestamp) -> float | None:
+    """Last price strictly before period_start. Used as base for period returns."""
+    before = prices[prices.index < period_start]
+    return float(before.iloc[-1]) if not before.empty else None
+
+
 def period_return(prices: pd.Series, window: str) -> float | None:
     """
     Cumulative return over the given window.
+    Uses last price before window start as base (consistent with calc_calendar).
     window: '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'All'
     Returns float (e.g. 0.123 = 12.3%) or None if insufficient data.
     """
@@ -75,9 +82,16 @@ def period_return(prices: pd.Series, window: str) -> float | None:
     if start is None:
         return None
     sub = prices.loc[prices.index >= start]
-    if len(sub) < 2:
+    if sub.empty:
         return None
-    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+    end_price = float(sub.iloc[-1])
+    base = _prior_close(prices, start)
+    if base is None:
+        # No prior data (e.g. All-history or inception): use first price in window
+        if len(sub) < 2:
+            return None
+        base = float(sub.iloc[0])
+    return end_price / base - 1
 
 
 # ── Annualised statistics ──────────────────────────────────────────────────────
@@ -462,74 +476,105 @@ def calc_correlation(price_cache: dict, window: str = "3Y", min_overlap: int = 6
 
 # ── New period functions for overview rebuild ─────────────────────────────────
 
-def mtd(prices: pd.Series) -> float | None:
-    """Return from start of current calendar month to last observation."""
+def mtd(prices: pd.Series, ref_date: pd.Timestamp | None = None) -> float | None:
+    """
+    Return from prior month-end close to last price in the current month.
+    ref_date: reference point for 'current month' (defaults to prices.index[-1]).
+    Returns None if fund has no data in the current month.
+    """
     if prices is None or prices.empty:
         return None
-    today = prices.index[-1]
-    month_start = pd.Timestamp(today.year, today.month, 1)
-    sub = prices[prices.index >= month_start]
-    if len(sub) < 2:
+    ref = ref_date if ref_date is not None else prices.index[-1]
+    month_start = pd.Timestamp(ref.year, ref.month, 1)
+    base = _prior_close(prices, month_start)
+    if base is None:
         return None
-    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+    current = prices[prices.index >= month_start]
+    if current.empty:
+        return None
+    return float(current.iloc[-1]) / base - 1
 
 
-def prev_month_return(prices: pd.Series) -> float | None:
-    """Return for the previous complete calendar month."""
+def prev_month_return(prices: pd.Series, ref_date: pd.Timestamp | None = None) -> float | None:
+    """
+    Return for the previous complete calendar month (prior month-end to month-end).
+    ref_date: reference point defining 'current month' (defaults to prices.index[-1]).
+    """
     if prices is None or prices.empty:
         return None
-    last = prices.index[-1]
-    cur_month_start = pd.Timestamp(last.year, last.month, 1)
+    ref = ref_date if ref_date is not None else prices.index[-1]
+    cur_month_start = pd.Timestamp(ref.year, ref.month, 1)
     prev_end = cur_month_start - pd.Timedelta(days=1)
     prev_start = pd.Timestamp(prev_end.year, prev_end.month, 1)
-    sub = prices[(prices.index >= prev_start) & (prices.index <= prev_end)]
-    if len(sub) < 2:
+    sub_end = prices[prices.index <= prev_end]
+    if sub_end.empty:
         return None
-    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+    end_price = float(sub_end.iloc[-1])
+    base = _prior_close(prices, prev_start)
+    if base is None:
+        return None
+    return end_price / base - 1
 
 
-def qtd(prices: pd.Series) -> float | None:
-    """Return from start of current calendar quarter to last observation."""
+def qtd(prices: pd.Series, ref_date: pd.Timestamp | None = None) -> float | None:
+    """
+    Return from prior quarter-end close to last price in the current quarter.
+    ref_date: reference point defining 'current quarter' (defaults to prices.index[-1]).
+    Returns None if fund has no data in the current quarter.
+    """
     if prices is None or prices.empty:
         return None
-    last = prices.index[-1]
-    q_month = ((last.month - 1) // 3) * 3 + 1  # first month of current quarter
-    q_start = pd.Timestamp(last.year, q_month, 1)
-    sub = prices[prices.index >= q_start]
-    if len(sub) < 2:
+    ref = ref_date if ref_date is not None else prices.index[-1]
+    q_month = ((ref.month - 1) // 3) * 3 + 1
+    q_start = pd.Timestamp(ref.year, q_month, 1)
+    base = _prior_close(prices, q_start)
+    if base is None:
         return None
-    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+    current = prices[prices.index >= q_start]
+    if current.empty:
+        return None
+    return float(current.iloc[-1]) / base - 1
 
 
-def prev_quarter_return(prices: pd.Series) -> float | None:
-    """Return for the previous complete calendar quarter."""
+def prev_quarter_return(prices: pd.Series, ref_date: pd.Timestamp | None = None) -> float | None:
+    """
+    Return for the previous complete calendar quarter (prior quarter-end to quarter-end).
+    ref_date: reference point defining 'current quarter' (defaults to prices.index[-1]).
+    """
     if prices is None or prices.empty:
         return None
-    last = prices.index[-1]
-    cur_q_month = ((last.month - 1) // 3) * 3 + 1
-    cur_q_start = pd.Timestamp(last.year, cur_q_month, 1)
+    ref = ref_date if ref_date is not None else prices.index[-1]
+    cur_q_month = ((ref.month - 1) // 3) * 3 + 1
+    cur_q_start = pd.Timestamp(ref.year, cur_q_month, 1)
     prev_q_end = cur_q_start - pd.Timedelta(days=1)
     prev_q_month = ((prev_q_end.month - 1) // 3) * 3 + 1
     prev_q_start = pd.Timestamp(prev_q_end.year, prev_q_month, 1)
-    sub = prices[(prices.index >= prev_q_start) & (prices.index <= prev_q_end)]
-    if len(sub) < 2:
+    sub_end = prices[prices.index <= prev_q_end]
+    if sub_end.empty:
         return None
-    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+    end_price = float(sub_end.iloc[-1])
+    base = _prior_close(prices, prev_q_start)
+    if base is None:
+        return None
+    return end_price / base - 1
 
 
 def calendar_year_return(prices: pd.Series, year: int) -> float | None:
-    """Full calendar year return. Returns None if fund didn't cover the full year."""
+    """Full calendar year return using prior year-end as base."""
     if prices is None or prices.empty:
         return None
     sub = prices[prices.index.year == year]
     if sub.empty:
         return None
-    # Fund must have first price <= Jan 31 and last price >= Dec 1 (for past years)
     if sub.index[0] > pd.Timestamp(year, 1, 31):
         return None  # fund launched mid-year
     if sub.index[-1] < pd.Timestamp(year, 12, 1) and year < pd.Timestamp.today().year:
         return None  # fund ended mid-year
-    return float(sub.iloc[-1] / sub.iloc[0] - 1)
+    end_price = float(sub.iloc[-1])
+    base = _prior_close(prices, pd.Timestamp(year, 1, 1))
+    if base is None:
+        base = float(sub.iloc[0])  # fund started this year: use inception price
+    return end_price / base - 1
 
 
 def inception_date(prices: pd.Series) -> str | None:

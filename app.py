@@ -341,10 +341,9 @@ def get_fund_detail():
     for w in windows:
         start_dt = pe._window_start(prices, w)
         sub = prices if start_dt is None else prices.loc[prices.index >= start_dt]
-        period_ret = _safe_float(sub.iloc[-1] / sub.iloc[0] - 1) if len(sub) >= 2 else None
         stats_by_window[w] = {
             **_serialise(pe.calc_stats(sub)),
-            "period_return": period_ret,
+            "period_return": _safe_float(pe.period_return(prices, w)),
         }
 
     # Calendar
@@ -386,6 +385,10 @@ def get_overview():
     universe = de.load_universe()
 
     rows = []
+    # Global reference date: most recent price point across all funds.
+    # Passed to period functions so all funds compute MTD/QTD relative to the same date.
+    _lu = _get_last_updated()
+    ref_date = pd.Timestamp(_lu) if _lu else None
 
     for fid, prices in _price_cache.items():
         meta = fund_meta.get(fid, {})
@@ -404,10 +407,10 @@ def get_overview():
         }
 
         if has_data:
-            row["mtd"]        = _safe_float(pe.mtd(prices))
-            row["prev_month"] = _safe_float(pe.prev_month_return(prices))
-            row["qtd"]        = _safe_float(pe.qtd(prices))
-            row["prev_qtr"]   = _safe_float(pe.prev_quarter_return(prices))
+            row["mtd"]        = _safe_float(pe.mtd(prices, ref_date))
+            row["prev_month"] = _safe_float(pe.prev_month_return(prices, ref_date))
+            row["qtd"]        = _safe_float(pe.qtd(prices, ref_date))
+            row["prev_qtr"]   = _safe_float(pe.prev_quarter_return(prices, ref_date))
             row["ytd"]        = _safe_float(pe.period_return(prices, "YTD"))
             row["ret_12m"]    = _safe_float(pe.period_return(prices, "1Y"))
             row["ret_2025"]   = _safe_float(pe.calendar_year_return(prices, 2025))
