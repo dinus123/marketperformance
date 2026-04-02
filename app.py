@@ -341,9 +341,10 @@ def get_fund_detail():
     for w in windows:
         start_dt = pe._window_start(prices, w)
         sub = prices if start_dt is None else prices.loc[prices.index >= start_dt]
+        period_ret = _safe_float(sub.iloc[-1] / sub.iloc[0] - 1) if len(sub) >= 2 else None
         stats_by_window[w] = {
             **_serialise(pe.calc_stats(sub)),
-            "period_return": _safe_float(pe.period_return(prices, w)),
+            "period_return": period_ret,
         }
 
     # Calendar

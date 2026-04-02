@@ -59,6 +59,16 @@ When uncertain: start with Sonnet. Escalate to Opus only if Sonnet fails on seco
 
 ---
 
+## Testing Protocol (mandatory before any push)
+
+Before pushing ANY change that touches a display path (modal, chart, table cell):
+1. Verify the API response JSON directly — `curl http://localhost:5055/api/fund_detail?id=<id>` — confirm the fields you're relying on are non-null.
+2. If adding a new field to an API response, trace the full path: Python computation → `_serialise`/`_safe_float` → JSON key → JS field access → `fmtPct`/display. Null at any step renders as "—".
+3. Never assume a helper function returns a value just because a related function does. Compute from the same already-validated sub-series where possible.
+4. When modifying display logic for one window tier (e.g. SHORT_WINDOWS), verify ALL tiers still render before pushing.
+
+---
+
 ## Environment
 
 ```bash
