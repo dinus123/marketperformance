@@ -865,6 +865,12 @@ const App = {
           document.getElementById('refresh-btn').disabled = false;
           App.overviewTab.loaded = false;
           App.overviewTab.load();
+          // Reset all tab latches so next visit re-fetches with updated cache
+          App.rendered.timeseries      = false;
+          App.rendered.stats           = false;
+          App.rendered.relative        = false;
+          App.calendarRenderedFund     = null;
+          App.corrTab.loaded           = false;
         })
         .catch(e => {
           console.error('Refresh failed:', e);
