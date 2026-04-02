@@ -667,11 +667,13 @@ const App = {
 
   _buildModalHtml(data, meta) {
     const windows = ['1M','3M','6M','YTD','1Y','3Y','5Y','All'];
+    const SHORT_WINDOWS = new Set(['1M','3M','6M','YTD','1Y']);
     const statsHtml = windows.map(w => {
       const s = (data.stats || {})[w] || {};
+      const mainVal = SHORT_WINDOWS.has(w) ? s.period_return : s.cagr;
       return `<div class="modal-stat-card">
         <div class="modal-stat-label">${w}</div>
-        <div class="modal-stat-value ${colorClass(s.cagr)}">${fmtPct(s.cagr)}</div>
+        <div class="modal-stat-value ${colorClass(mainVal)}">${fmtPct(mainVal)}</div>
         <div class="muted" style="font-size:11px">
           Vol: ${fmtPctNoSign(s.vol)} &nbsp;
           SR: ${fmtNum(s.sharpe)} &nbsp;

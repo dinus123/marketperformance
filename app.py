@@ -40,6 +40,14 @@ def inject_version():
     return {"v": CACHE_VERSION}
 
 
+@app.after_request
+def no_cache_api(response):
+    """Prevent browser from caching API JSON responses."""
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # ── Price cache (module-level, populated at startup) ──────────────────────────
 # Keys = fund id (from universe.json), values = pd.Series of Close prices.
 # Manual-CSV funds with no file → empty Series (never None, prevents repeated None checks).
@@ -333,7 +341,10 @@ def get_fund_detail():
     for w in windows:
         start_dt = pe._window_start(prices, w)
         sub = prices if start_dt is None else prices.loc[prices.index >= start_dt]
-        stats_by_window[w] = _serialise(pe.calc_stats(sub))
+        stats_by_window[w] = {
+            **_serialise(pe.calc_stats(sub)),
+            "period_return": _safe_float(pe.period_return(prices, w)),
+        }
 
     # Calendar
     calendar = pe.calc_calendar(prices)
