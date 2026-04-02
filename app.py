@@ -377,7 +377,7 @@ def get_overview():
 
     for fid, prices in _price_cache.items():
         meta = fund_meta.get(fid, {})
-        if not meta.get("active", True):
+        if not meta.get("active", True) or meta.get("data_source") == "manual_csv":
             continue
         has_data = prices is not None and not prices.empty
 
@@ -445,8 +445,10 @@ def refresh_data():
 def get_correlation():
     """GET /api/correlation?window=1Y|3Y|5Y|All"""
     window = request.args.get("window", "3Y")
-    result = pe.calc_correlation(_price_cache, window=window)
     fm = _fund_map()
+    filtered_cache = {fid: v for fid, v in _price_cache.items()
+                      if fm.get(fid, {}).get("data_source") != "manual_csv"}
+    result = pe.calc_correlation(filtered_cache, window=window)
     result["names"] = [fm.get(fid, {}).get("name", fid) for fid in result["ids"]]
     return jsonify(result)
 

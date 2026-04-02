@@ -155,8 +155,7 @@ const App = {
   },
 
   _populateSelects() {
-    const active = this.universe.filter(f => f.active && f.data_source !== 'manual_csv' || (f.active && true));
-    const withData = this.universe.filter(f => f.active);
+    const withData = this.universe.filter(f => f.active && f.data_source !== 'manual_csv');
 
     // Calendar fund select
     const calSel = document.getElementById('cal-fund-select');
@@ -282,7 +281,7 @@ const App = {
   _buildTsFundList() {
     const container = document.getElementById('ts-fund-list');
     if (!container) return;
-    const active = this.universe.filter(f => f.active);
+    const active = this.universe.filter(f => f.active && f.data_source !== 'manual_csv');
     container.innerHTML = active.map((f, i) => {
       const color = COLORS[i % COLORS.length];
       const hasData = f.data_source === 'yfinance';
