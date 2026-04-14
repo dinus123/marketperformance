@@ -12,6 +12,26 @@ from scipy import stats as sp_stats
 
 from config import TRADING_DAYS
 
+# ── Frequency detection ───────────────────────────────────────────────────────
+
+def detect_freq(prices: pd.Series) -> tuple[str, int]:
+    """
+    Infer observation frequency from median inter-obs gap.
+    Returns (label, ann_factor): ('D', 252) | ('W', 52) | ('M', 12).
+    Threshold: median gap ≤2d → daily; ≤10d → weekly; >10d → monthly.
+    """
+    if prices is None or len(prices) < 4:
+        return 'D', TRADING_DAYS
+    gaps = prices.index.to_series().diff().dt.days.dropna()
+    median_gap = gaps.median()
+    if median_gap <= 2:
+        return 'D', TRADING_DAYS
+    elif median_gap <= 10:
+        return 'W', 52
+    else:
+        return 'M', 12
+
+
 # ── Basic building blocks ──────────────────────────────────────────────────────
 
 def returns_from_prices(prices: pd.Series) -> pd.Series:
@@ -96,56 +116,57 @@ def period_return(prices: pd.Series, window: str) -> float | None:
 
 # ── Annualised statistics ──────────────────────────────────────────────────────
 
-def cagr(returns: pd.Series) -> float:
-    """Compound annual growth rate. Annualised ×252."""
+def cagr(returns: pd.Series, ann_factor: int = TRADING_DAYS) -> float:
+    """Compound annual growth rate. Annualised ×ann_factor (default 252)."""
     if returns.empty:
         return 0.0
-    return float((1 + returns).prod() ** (TRADING_DAYS / len(returns)) - 1)
+    return float((1 + returns).prod() ** (ann_factor / len(returns)) - 1)
 
 
-def vol(returns: pd.Series) -> float:
-    """Annualised volatility ×√252."""
+def vol(returns: pd.Series, ann_factor: int = TRADING_DAYS) -> float:
+    """Annualised volatility ×√ann_factor (default 252)."""
     if len(returns) < 2:
         return 0.0
-    return float(returns.std() * np.sqrt(TRADING_DAYS))
+    return float(returns.std() * np.sqrt(ann_factor))
 
 
-def sharpe(returns: pd.Series, rf_daily: float = 0.0) -> float:
+def sharpe(returns: pd.Series, rf_daily: float = 0.0, ann_factor: int = TRADING_DAYS) -> float:
     """Annualised Sharpe ratio."""
     excess = returns - rf_daily
     if excess.std() == 0:
         return 0.0
-    return float(excess.mean() / excess.std() * np.sqrt(TRADING_DAYS))
+    return float(excess.mean() / excess.std() * np.sqrt(ann_factor))
 
 
 def sharpe_ci(
-    returns: pd.Series, rf_daily: float = 0.0, z: float = 1.96
+    returns: pd.Series, rf_daily: float = 0.0, z: float = 1.96,
+    ann_factor: int = TRADING_DAYS,
 ) -> tuple[float, float, float]:
     """
     Lo (2002) Sharpe ratio with 95% CI.
     Returns (sharpe_ann, lo_95, hi_95).
-    se = sqrt((1 + 0.5*SR_d^2) / n) * sqrt(252)
+    se = sqrt((1 + 0.5*SR_d^2) / n) * sqrt(ann_factor)
     """
     excess = returns - rf_daily
     n = len(excess)
     if n < 2 or excess.std() == 0:
         return 0.0, 0.0, 0.0
     sr_d = excess.mean() / excess.std()
-    se = np.sqrt((1 + 0.5 * sr_d**2) / n) * np.sqrt(TRADING_DAYS)
-    sr_ann = float(sr_d * np.sqrt(TRADING_DAYS))
+    se = np.sqrt((1 + 0.5 * sr_d**2) / n) * np.sqrt(ann_factor)
+    sr_ann = float(sr_d * np.sqrt(ann_factor))
     return sr_ann, float(sr_ann - z * se), float(sr_ann + z * se)
 
 
-def sortino(returns: pd.Series, rf_daily: float = 0.0) -> float:
+def sortino(returns: pd.Series, rf_daily: float = 0.0, ann_factor: int = TRADING_DAYS) -> float:
     """Sortino ratio: CAGR / downside vol (semi-deviation annualised)."""
     excess = returns - rf_daily
     downside = excess[excess < 0]
     if len(downside) < 2:
         return 0.0
-    downside_vol = downside.std() * np.sqrt(TRADING_DAYS)
+    downside_vol = downside.std() * np.sqrt(ann_factor)
     if downside_vol == 0:
         return 0.0
-    return float(cagr(returns) / downside_vol)
+    return float(cagr(returns, ann_factor) / downside_vol)
 
 
 def max_drawdown(prices: pd.Series) -> float:
@@ -184,35 +205,38 @@ def kurt(returns: pd.Series) -> float:
 def calc_stats(prices: pd.Series, rf_daily: float = 0.0) -> dict:
     """
     Full stat block for a price series.
+    Auto-detects observation frequency; uses correct ann_factor for all metrics.
     Returns dict with: cagr, vol, sharpe, sharpe_lo, sharpe_hi,
-                       sortino, max_dd, calmar, skew, kurt, n_obs
+                       sortino, max_dd, calmar, skew, kurt, n_obs, freq
     All floats. None for series with < MIN_OBS observations.
     """
     MIN_OBS = 20
     if prices is None or len(prices) < MIN_OBS:
         return _empty_stats()
 
+    freq_label, ann_factor = detect_freq(prices)
     r = returns_from_prices(prices)
-    sr, sr_lo, sr_hi = sharpe_ci(r, rf_daily)
+    sr, sr_lo, sr_hi = sharpe_ci(r, rf_daily, ann_factor=ann_factor)
 
     return {
-        "cagr":      cagr(r),
-        "vol":       vol(r),
+        "cagr":      cagr(r, ann_factor),
+        "vol":       vol(r, ann_factor),
         "sharpe":    sr,
         "sharpe_lo": sr_lo,
         "sharpe_hi": sr_hi,
-        "sortino":   sortino(r, rf_daily),
+        "sortino":   sortino(r, rf_daily, ann_factor),
         "max_dd":    max_drawdown(prices),
         "calmar":    calmar(r, prices),
         "skew":      skew(r),
         "kurt":      kurt(r),
         "n_obs":     len(r),
+        "freq":      freq_label,
     }
 
 
 def _empty_stats() -> dict:
     keys = ["cagr", "vol", "sharpe", "sharpe_lo", "sharpe_hi",
-            "sortino", "max_dd", "calmar", "skew", "kurt", "n_obs"]
+            "sortino", "max_dd", "calmar", "skew", "kurt", "n_obs", "freq"]
     return {k: None for k in keys}
 
 

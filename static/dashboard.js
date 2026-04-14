@@ -899,7 +899,8 @@ const App = {
 
       let html = '';
       rows.forEach(r => {
-        const nameLabel = r.name + (!r.has_data ? ' <span class="muted">[M]</span>' : '');
+        const freqTag = (r.freq && r.freq !== 'D') ? ` <span class="freq-tag">[${r.freq}]</span>` : '';
+        const nameLabel = r.name + freqTag + (!r.has_data ? ' <span class="muted">[M]</span>' : '');
         html += `<tr class="${r.has_data ? '' : 'row-no-data'}" style="cursor:pointer"
                       onclick="App.openModal('${r.id}')">`;
         html += `<td class="fund-name-link">${nameLabel}</td>`;

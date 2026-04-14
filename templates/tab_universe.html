@@ -32,7 +32,7 @@
           <td class="muted">{{ fund.isin or '—' }}</td>
           <td>
             {% if fund.data_source == 'yfinance' %}
-              <span class="badge badge-blue">yfinance</span>
+              <a href="https://finance.yahoo.com/quote/{{ fund.ticker | urlencode }}" target="_blank" rel="noopener" class="badge badge-blue badge-link">yfinance</a>
             {% elif fund.data_source == 'manual_csv' %}
               <span class="badge badge-yellow">[M] manual</span>
             {% else %}

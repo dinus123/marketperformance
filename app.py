@@ -136,6 +136,8 @@ def _serialise(obj):
         return {k: _serialise(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_serialise(v) for v in obj]
+    if isinstance(obj, str):
+        return obj
     return _safe_float(obj)
 
 
@@ -416,11 +418,13 @@ def get_overview():
             row["ret_2025"]   = _safe_float(pe.calendar_year_return(prices, 2025))
             row["ret_2024"]   = _safe_float(pe.calendar_year_return(prices, 2024))
             row["ret_2023"]   = _safe_float(pe.calendar_year_return(prices, 2023))
-            row["vol"]        = _safe_float(pe.vol(pe.returns_from_prices(prices).iloc[-252:]))
+            _freq_label, _ann = pe.detect_freq(prices)
+            row["vol"]        = _safe_float(pe.vol(pe.returns_from_prices(prices).iloc[-_ann:], ann_factor=_ann))
+            row["freq"]       = _freq_label
             row["inception"]  = pe.inception_date(prices)
         else:
             for k in ["mtd", "prev_month", "qtd", "prev_qtr", "ytd", "ret_12m",
-                      "ret_2025", "ret_2024", "ret_2023", "vol", "inception"]:
+                      "ret_2025", "ret_2024", "ret_2023", "vol", "inception", "freq"]:
                 row[k] = None
 
         row["aum"] = None  # fetched lazily via /api/refresh, not at render time

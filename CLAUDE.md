@@ -78,6 +78,11 @@ pip install flask pandas numpy scipy yfinance pandas-datareader plotly
 Config: `config.py` — import everywhere; never hardcode tickers, ports, or lookback windows.
 Cache: `data/cache/` — never delete on server restart; TTL-managed.
 
+**Server restart required after any change to:** `app.py`, `perf_engine.py`, `data_engine.py`, `config.py`, `templates/*.html`
+**No restart needed for:** `static/dashboard.css`, `static/dashboard.js`, `universe.json` (browser hard-refresh still needed for CSS/JS)
+Restart: `lsof -ti:5055 | xargs kill -9 && python3 app.py`
+Verify template changes live: `curl http://localhost:5055 | grep <changed_element>` before browser test.
+
 ---
 
 ## Static Cache-Busting (mandatory)
